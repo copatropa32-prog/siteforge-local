@@ -7,40 +7,53 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen p-6">
-    <div class="max-w-4xl mx-auto">
+    <div class="max-w-6xl mx-auto">
         <header class="mb-8">
             <h1 class="text-3xl font-extrabold text-blue-400">SiteForge Local</h1>
-            <p class="text-slate-400">Seu construtor de aplicações autônomo baseado em IA local</p>
+            <p class="text-slate-400">Construtor autônomo de aplicações com IA local</p>
         </header>
 
-        <!-- Painel de Configurações -->
-        <section class="bg-slate-900 border border-slate-800 p-6 rounded-2xl mb-8 shadow-lg">
-            <h2 class="text-xl font-bold mb-4">⚙️ Configurações do Sistema</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Domínio Personalizado</label>
-                    <input id="domain" type="text" placeholder="ex: meudominio.com.br" class="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Variáveis de Ambiente (JSON)</label>
-                    <input id="env_vars" type="text" placeholder='{"CHAVE": "valor"}' class="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-blue-500">
-                </div>
-            </div>
-            <button onclick="salvarConfig()" class="mt-4 bg-blue-600 hover:bg-blue-700 transition font-medium px-5 py-2.5 rounded-xl">Salvar Configurações</button>
-        </section>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Coluna Esquerda: Configurações e Criação -->
+            <div class="space-y-6">
+                <!-- Painel de Configurações -->
+                <section class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
+                    <h2 class="text-xl font-bold mb-4">⚙️ Configurações</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-400 mb-1">Domínio Personalizado</label>
+                            <input id="domain" type="text" placeholder="ex: meudominio.com.br" class="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-400 mb-1">Variáveis de Ambiente (JSON)</label>
+                            <input id="env_vars" type="text" placeholder='{"CHAVE": "valor"}' class="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+                    <button onclick="salvarConfig()" class="mt-4 bg-blue-600 hover:bg-blue-700 transition font-medium px-5 py-2.5 rounded-xl w-full">Salvar Configurações</button>
+                </section>
 
-        <!-- Painel de Geração de Projetos por Agentes -->
-        <section class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
-            <h2 class="text-xl font-bold mb-4">🚀 Criar Aplicativo com Agentes</h2>
-            <div class="flex flex-col gap-4">
-                <textarea id="prompt" rows="4" placeholder="Descreva o que deseja criar (ex: Um painel de controle financeiro moderno)..." class="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-blue-500"></textarea>
-                <button onclick="gerarProjeto()" id="btnGerar" class="bg-emerald-600 hover:bg-emerald-700 transition font-medium px-5 py-3 rounded-xl">Executar Agentes de IA</button>
+                <!-- Painel de Geração de Projetos -->
+                <section class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
+                    <h2 class="text-xl font-bold mb-4">🚀 Criar Aplicativo</h2>
+                    <div class="flex flex-col gap-4">
+                        <textarea id="prompt" rows="4" placeholder="Descreva o que deseja criar (ex: Um aplicativo de tarefas moderno)..." class="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-blue-500"></textarea>
+                        <button onclick="gerarProjeto()" id="btnGerar" class="bg-emerald-600 hover:bg-emerald-700 transition font-medium px-5 py-3 rounded-xl w-full">Executar Agentes de IA</button>
+                    </div>
+                </section>
             </div>
-            <div id="resultado" class="mt-6 hidden">
-                <h3 class="font-bold text-lg mb-2">Status da Geração:</h3>
-                <pre id="logOutput" class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-sm overflow-x-auto text-emerald-400"></pre>
+
+            <!-- Coluna Direta: Live Preview (Visualizador em Tempo Real) -->
+            <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg flex flex-col">
+                <h2 class="text-xl font-bold mb-4">👁️ Visualização em Tempo Real</h2>
+                <div class="flex-1 bg-slate-950 border border-slate-800 rounded-xl overflow-hidden min-h-[400px] flex flex-col">
+                    <div class="bg-slate-900 px-4 py-2 border-b border-slate-800 text-xs text-slate-400 flex items-center justify-between">
+                        <span id="previewStatus">Aguardando geração do projeto...</span>
+                        <button onclick="atualizarPreview()" class="text-blue-400 hover:underline">Recarregar</button>
+                    </div>
+                    <iframe id="previewFrame" src="about:blank" class="w-full flex-1 bg-white border-none"></iframe>
+                </div>
             </div>
-        </section>
+        </div>
     </div>
 
     <script>
@@ -76,13 +89,12 @@
                 return;
             }
             const btn = document.getElementById('btnGerar');
-            const resBox = document.getElementById('resultado');
-            const log = document.getElementById('logOutput');
+            const status = document.getElementById('previewStatus');
+            const frame = document.getElementById('previewFrame');
 
             btn.disabled = true;
             btn.innerText = 'Agentes trabalhando...';
-            resBox.classList.remove('hidden');
-            log.innerText = 'Arquitetando e desenvolvendo o projeto localmente...';
+            status.innerText = 'O Arquiteto e o Coder estão criando o app...';
 
             try {
                 const response = await fetch('/api/gerar', {
@@ -91,13 +103,24 @@
                     body: JSON.stringify({ prompt })
                 });
                 const data = await response.json();
-                log.innerText = JSON.stringify(data, null, 2);
+                
+                if (data.status === 'success') {
+                    status.innerText = 'Projeto gerado com sucesso!';
+                    frame.src = data.preview_url + '?t=' + new Date().getTime();
+                } else {
+                    status.innerText = 'Erro ao gerar projeto.';
+                }
             } catch (e) {
-                log.innerText = 'Erro ao gerar projeto: ' + e.message;
+                status.innerText = 'Falha de comunicação com o servidor.';
             } finally {
                 btn.disabled = false;
                 btn.innerText = 'Executar Agentes de IA';
             }
+        }
+
+        function atualizarPreview() {
+            const frame = document.getElementById('previewFrame');
+            frame.src = frame.src;
         }
 
         carregarConfig();
