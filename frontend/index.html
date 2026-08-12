@@ -3,123 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SiteForge Local - Professional IDE</title>
+    <title>SiteForge IDE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+    <style>
+        /* Ajuste fino para o layout de IDE */
+        body, html { height: 100%; margin: 0; overflow: hidden; }
+        .sidebar-item:hover { background-color: #1e293b; }
+    </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen p-6">
-    <div class="max-w-7xl mx-auto">
-        <header class="mb-8 flex justify-between items-center">
-            <div>
-                <h1 class="text-3xl font-extrabold text-blue-400">SiteForge Local</h1>
-                <p class="text-slate-400">Ambiente de Desenvolvimento Multi-Agentes</p>
+<body class="bg-slate-950 text-slate-200 flex h-screen">
+
+    <!-- 1. SIDEBAR (Explorador de Arquivos) -->
+    <aside class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col flex-none">
+        <div class="p-4 border-b border-slate-800 flex justify-between items-center">
+            <h2 class="font-bold text-sm text-slate-400 uppercase tracking-wider">Arquivos</h2>
+            <button onclick="criarArquivoManual()" class="text-emerald-500 hover:text-emerald-400 font-bold">+</button>
+        </div>
+        <div id="fileList" class="flex-1 overflow-y-auto p-2 space-y-1">
+            <!-- Arquivos aparecerão aqui -->
+        </div>
+        <div class="p-4 border-t border-slate-800">
+            <button onclick="baixarProjeto()" class="w-full bg-slate-800 hover:bg-slate-700 text-xs py-2 rounded">Exportar ZIP</button>
+        </div>
+    </aside>
+
+    <!-- 2. MAIN WORKSPACE (Editor + Terminal) -->
+    <main class="flex-1 flex flex-col min-w-0">
+        <!-- Toolbar Superior -->
+        <header class="h-12 bg-slate-900 border-b border-slate-800 flex items-center px-4 justify-between">
+            <div id="currentFileName" class="text-sm font-medium">Nenhum arquivo</div>
+            <div class="flex gap-2">
+                <button onclick="salvarArquivoAtual()" class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-xs">Salvar</button>
+                <button onclick="gerarProjeto()" class="bg-emerald-600 hover:bg-emerald-700 px-3 py-1 rounded text-xs">Gerar</button>
             </div>
-            <button onclick="baixarProjeto()" class="bg-indigo-600 hover:bg-indigo-700 transition font-medium px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-lg">
-                📦 Baixar Projeto (ZIP)
-            </button>
         </header>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Coluna 1: Configurações e Logs -->
-            <div class="space-y-6 lg:col-span-1">
-                <section class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
-                    <h2 class="text-xl font-bold mb-4">⚙️ Configurações</h2>
-                    <div class="space-y-3">
-                        <input id="model" type="text" placeholder="Modelo (ex: llama3)" class="w-full p-2 bg-slate-950 border border-slate-800 rounded-lg text-sm focus:border-blue-500 outline-none">
-                        <button onclick="salvarConfig()" class="bg-blue-600 hover:bg-blue-700 w-full py-2 rounded-lg text-sm font-medium transition">Salvar Config</button>
-                    </div>
-                </section>
+        <!-- Editor (Monaco) -->
+        <div id="editorContainer" class="flex-1 w-full bg-slate-950"></div>
 
-                <section class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
-                    <h2 class="text-xl font-bold mb-4">🚀 Ações dos Agentes</h2>
-                    <textarea id="prompt" rows="3" placeholder="Descreva o projeto ou a modificação..." class="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl mb-2 text-sm focus:border-blue-500 outline-none"></textarea>
-                    <div class="flex gap-2">
-                        <button onclick="gerarProjeto()" id="btnGerar" class="bg-emerald-600 hover:bg-emerald-700 flex-1 py-2 rounded-xl text-sm font-bold transition">Criar</button>
-                        <button onclick="modificarProjeto()" id="btnModificar" class="bg-purple-600 hover:bg-purple-700 flex-1 py-2 rounded-xl text-sm font-bold transition">Refinar</button>
-                    </div>
-                </section>
-
-                <section class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
-                    <h2 class="text-xl font-bold mb-3">💻 Terminal</h2>
-                    <div id="terminalLog" class="bg-slate-950 border border-slate-800 p-3 rounded-xl h-32 overflow-y-auto font-mono text-xs text-emerald-400">
-                        Aguardando comandos...
-                    </div>
-                </section>
+        <!-- Painel Inferior (Terminal + Preview) -->
+        <section class="h-48 border-t border-slate-800 bg-slate-900 flex">
+            <!-- Terminal Log -->
+            <div class="w-1/2 border-r border-slate-800 p-4 flex flex-col">
+                <h3 class="text-xs font-bold text-slate-500 mb-2 uppercase">Terminal</h3>
+                <div id="terminalLog" class="flex-1 overflow-y-auto font-mono text-xs text-emerald-400">Aguardando...</div>
             </div>
-
-            <!-- Coluna 2 e 3: Editor e Preview -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 lg:col-span-2">
-                <!-- Editor -->
-                <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg flex flex-col">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-xl font-bold" id="currentFileName">Editor</h2>
-                        <div class="flex gap-2">
-                            <button onclick="criarArquivoManual()" class="bg-emerald-800 hover:bg-emerald-700 px-3 py-1 rounded text-xs transition">➕ Novo</button>
-                            <button onclick="salvarArquivoAtual()" class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-xs transition">💾 Salvar</button>
-                        </div>
-                    </div>
-                    <div id="fileList" class="flex flex-wrap gap-2 mb-4 text-xs"></div>
-                    <div id="editorContainer" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl min-h-[450px]"></div>
-                </div>
-
-                <!-- Preview -->
-                <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg flex flex-col">
-                    <h2 class="text-xl font-bold mb-4">👁️ Live Preview</h2>
-                    <div class="flex-1 bg-white rounded-xl overflow-hidden min-h-[450px]">
-                        <iframe id="previewFrame" src="about:blank" class="w-full h-full border-none"></iframe>
-                    </div>
-                </div>
+            <!-- Preview -->
+            <div class="w-1/2 p-0">
+                <iframe id="previewFrame" src="about:blank" class="w-full h-full border-none"></iframe>
             </div>
-        </div>
-    </div>
+        </section>
+    </main>
 
     <script>
-        // --- 1. Inicialização do Monaco Editor ---
+        // --- Monaco Editor ---
         let editor;
         require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
         require(['vs/editor/editor.main'], function() {
             editor = monaco.editor.create(document.getElementById('editorContainer'), {
-                value: '// Selecione um arquivo para começar...',
+                value: '// Selecione um arquivo na sidebar...',
                 language: 'html',
                 theme: 'vs-dark',
-                automaticLayout: true,
-                fontSize: 14
+                automaticLayout: true
             });
         });
 
         let currentFileActive = null;
 
-        // --- 2. Lógica de Arquivos ---
-        function getLanguage(filename) {
-            if (filename.endsWith('.html')) return 'html';
-            if (filename.endsWith('.css')) return 'css';
-            if (filename.endsWith('.js')) return 'javascript';
-            if (filename.endsWith('.json')) return 'json';
-            return 'plaintext';
-        }
-
+        // --- Lógica ---
         async function carregarArquivos() {
             const res = await fetch('/api/files');
             const files = await res.json();
             const list = document.getElementById('fileList');
             list.innerHTML = '';
             files.forEach(file => {
-                const container = document.createElement('div');
-                container.className = 'flex items-center bg-slate-800 rounded overflow-hidden';
-                
-                const btn = document.createElement('button');
-                btn.className = 'px-2 py-1 hover:bg-slate-700';
-                btn.innerText = file;
-                btn.onclick = () => verConteudoArquivo(file);
-                
-                const delBtn = document.createElement('button');
-                delBtn.className = 'px-2 py-1 text-red-400 hover:bg-red-900';
-                delBtn.innerText = '✕';
-                delBtn.onclick = () => deletarArquivo(file);
-
-                container.appendChild(btn);
-                container.appendChild(delBtn);
-                list.appendChild(container);
+                const item = document.createElement('div');
+                item.className = 'sidebar-item flex justify-between items-center px-2 py-1.5 rounded cursor-pointer text-sm';
+                item.onclick = () => verConteudoArquivo(file);
+                item.innerHTML = `<span>${file}</span> <button onclick="event.stopPropagation(); deletarArquivo('${file}')" class="text-slate-600 hover:text-red-400">✕</button>`;
+                list.appendChild(item);
             });
         }
 
@@ -128,122 +91,55 @@
             document.getElementById('currentFileName').innerText = path;
             const res = await fetch(`/api/file-content?path=${encodeURIComponent(path)}`);
             const data = await res.json();
-            
-            const oldModel = editor.getModel();
-            const newModel = monaco.editor.createModel(data.content, getLanguage(path));
-            editor.setModel(newModel);
-            if (oldModel) oldModel.dispose();
+            const model = monaco.editor.createModel(data.content, path.endsWith('.js') ? 'javascript' : (path.endsWith('.css') ? 'css' : 'html'));
+            editor.setModel(model);
         }
 
         async function salvarArquivoAtual() {
             if (!currentFileActive) return;
-            const content = editor.getValue();
             await fetch('/api/file-content', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ path: currentFileActive, content })
+                body: JSON.stringify({ path: currentFileActive, content: editor.getValue() })
             });
-            alert('Arquivo salvo!');
+            logTerminal("Arquivo salvo com sucesso.");
             atualizarPreview();
-        }
-
-        async function criarArquivoManual() {
-            const path = prompt("Nome do arquivo (ex: teste.html):");
-            if (!path) return;
-            await fetch('/api/file-create', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ path })
-            });
-            await carregarArquivos();
-            verConteudoArquivo(path);
-        }
-
-        async function deletarArquivo(path) {
-            if (!confirm(`Excluir ${path}?`)) return;
-            await fetch('/api/file-delete', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ path })
-            });
-            await carregarArquivos();
-            if (currentFileActive === path) editor.setValue('');
-        }
-
-        // --- 3. Lógica de Agentes e API ---
-        async function carregarConfig() {
-            const res = await fetch('/api/config');
-            const data = await res.json();
-            document.getElementById('model').value = data.model || 'llama3';
-        }
-
-        async function salvarConfig() {
-            await fetch('/api/config', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ model: document.getElementById('model').value })
-            });
-            alert('Config salva!');
         }
 
         async function logTerminal(msg) {
             const terminal = document.getElementById('terminalLog');
-            terminal.innerText += '\n' + msg;
+            terminal.innerText += `\n> ${msg}`;
             terminal.scrollTop = terminal.scrollHeight;
         }
 
         async function gerarProjeto() {
-            const prompt = document.getElementById('prompt').value;
-            if (!prompt) return alert('Descreva o projeto.');
-            
-            logTerminal('🚀 Iniciando agentes...');
-            const interval = setInterval(async () => {
-                const res = await fetch('/api/status');
-                const data = await res.json();
-                logTerminal(data.status);
-            }, 1000);
-
-            const res = await fetch('/api/gerar', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ prompt })
-            });
-            
-            clearInterval(interval);
-            if (res.ok) {
-                alert('Projeto gerado!');
-                carregarArquivos();
-                atualizarPreview();
-            }
+            const prompt = prompt("O que você deseja construir?");
+            if (!prompt) return;
+            logTerminal("Agentes trabalhando...");
+            await fetch('/api/gerar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ prompt }) });
+            carregarArquivos();
+            atualizarPreview();
         }
 
-        async function modificarProjeto() {
-            const prompt = document.getElementById('prompt').value;
-            if (!prompt) return alert('Descreva a modificação.');
+        async function criarArquivoManual() {
+            const path = prompt("Nome do arquivo:");
+            if(!path) return;
+            await fetch('/api/file-create', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ path }) });
+            carregarArquivos();
+        }
 
-            logTerminal('🔧 Agente modificador atuando...');
-            const res = await fetch('/api/modificar', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ prompt })
-            });
-
-            if (res.ok) {
-                alert('Modificações aplicadas!');
-                atualizarPreview();
-            }
+        async function deletarArquivo(path) {
+            if(!confirm("Excluir?")) return;
+            await fetch('/api/file-delete', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ path }) });
+            carregarArquivos();
         }
 
         function atualizarPreview() {
-            const frame = document.getElementById('previewFrame');
-            frame.src = '/preview/index.html?t=' + new Date().getTime();
+            document.getElementById('previewFrame').src = '/preview/index.html?t=' + Date.now();
         }
 
-        function baixarProjeto() {
-            window.location.href = '/api/download';
-        }
+        function baixarProjeto() { window.location.href = '/api/download'; }
 
-        carregarConfig();
         carregarArquivos();
     </script>
 </body>
