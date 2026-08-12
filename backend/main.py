@@ -49,6 +49,9 @@ async def save_config(config: dict):
 @app.post("/api/gerar")
 async def generate_app(request: ProjectRequest):
     try:
+        project_path = os.path.join(WORKSPACE_DIR, "latest_project")
+        os.makedirs(project_path, exist_ok=True)
+
         files_to_create = agent_architect(request.prompt)
         
         generated_files = []
@@ -56,13 +59,20 @@ async def generate_app(request: ProjectRequest):
             file_code = agent_coder(request.prompt, file_name)
             file_code = file_code.replace(f"```{file_name.split('.')[-1]}", "").replace("```", "").strip()
             
-            file_full_path = os.path.join(FRONTEND_DIR, file_name)
+            file_full_path = os.path.join(project_path, file_name)
             with open(file_full_path, "w", encoding="utf-8") as f:
                 f.write(file_code)
             generated_files.append(file_name)
                 
-        return {"status": "success", "files": generated_files}
+        return {
+            "status": "success",
+            "files": generated_files,
+            "preview_url": "/preview/index.html"
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Rota para servir o app gerado em tempo real
+app.mount("/preview", StaticFiles(directory=os.path.join(WORKSPACE_DIR, "latest_project"), html=True), name="preview")
+# Rota principal para o painel de controle
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
