@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from agents import agent_architect, agent_coder, agent_debugger
+from agents import agent_architect, agent_coder, agent_debugger, agent_modifier
 
 app = FastAPI()
 
@@ -143,6 +143,49 @@ async def generate_app(request: ProjectRequest):
         }
     except Exception as e:
         current_status_log = f"❌ Erro durante o processo: {str(e)}"
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/modificar")
+async def modify_app(request: ProjectRequest):
+    global current_status_log
+    config = load_config()
+    model_name = config.get("model", "llama3")
+    
+    project_path = os.path.join(WORKSPACE_DIR, "latest_project")
+    if not os.path.exists(project_path):
+        raise HTTPException(status_code=404, detail="Nenhum projeto encontrado para modificar")
+    
+    try:
+        current_status_log = f"🤖 [Modelo: {model_name}] Agente Modificador analisando pedido..."
+        
+        files_content = {}
+        for root, _, filenames in os.walk(project_path):
+            for name in filenames:
+                rel_path = os.path.relpath(os.path.join(root, name), project_path)
+                with open(os.path.join(root, name), "r", encoding="utf-8") as f:
+                    files_content[rel_path] = f.read()
+                    
+        files_str = json.dumps(files_content, ensure_ascii=False, indent=2)
+        
+        current_status_log = "💻 Aplicando modificações cirúrgicas nos arquivos..."
+        modifications = agent_modifier(files_str, request.prompt, model_name)
+        
+        modified_files = []
+        for file_name, new_code in modifications.items():
+            clean_code = new_code.replace(f"```{file_name.split('.')[-1]}", "").replace("```", "").strip()
+            file_full_path = os.path.join(project_path, file_name)
+            with open(file_full_path, "w", encoding="utf-8") as f:
+                f.write(clean_code)
+            modified_files.append(file_name)
+        
+        current_status_log = f"✅ Modificações aplicadas com sucesso em: {modified_files}"
+        return {
+            "status": "success",
+            "files": modified_files,
+            "preview_url": "/preview/index.html"
+        }
+    except Exception as e:
+        current_status_log = f"❌ Erro na modificação: {str(e)}"
         raise HTTPException(status_code=500, detail=str(e))
 
 app.mount("/preview", StaticFiles(directory=os.path.join(WORKSPACE_DIR, "latest_project"), html=True), name="preview")
