@@ -1,12 +1,22 @@
 @echo off
-echo Iniciando o SiteForge Local...
+cls
+echo ===================================================
+echo       INICIANDO O SITEFORGE LOCAL (MULTI-AGENTES)
+echo ===================================================
 
-:: Abre o Backend em uma nova janela
-start cmd /k "echo Iniciando Backend... && cd backend && python main.py"
+echo [1/3] Verificando e instalando dependencias do Python...
+cd backend
+python -m pip install --upgrade pip
+pip install -r requirements.txt
 
-:: Abre o Frontend em outra nova janela
-start cmd /k "echo Iniciando Frontend... && cd frontend && npm run dev"
+echo [2/3] Iniciando o servidor FastAPI...
+start cmd /k "uvicorn main:app --reload --port 8000"
 
-echo Ambos os servidores foram iniciados.
-echo Pressione qualquer tecla para fechar este script.
+echo [3/3] Abrindo o painel no navegador...
+timeout /t 3 >nul
+start http://localhost:8000
+
+echo ===================================================
+echo Tudo pronto! O servidor esta rodando na porta 8000.
+echo ===================================================
 pause
