@@ -1,0 +1,58 @@
+import json
+import requests
+
+OLLAMA_URL = "http://localhost:11434/api"
+MODEL_NAME = "llama3"
+
+def call_ollama(prompt, system_instruction=""):
+    full_prompt = f"{system_instruction}\n\nUser Request: {prompt}" if system_instruction else prompt
+    payload = {
+        "model": MODEL_NAME,
+        "prompt": full_prompt,
+        "stream": False,
+        "options": {"temperature": 0.7}
+    }
+    try:
+        response = requests.post(f"{OLLAMA_URL}/generate", json=payload, timeout=300)
+        if response.status_code == 200:
+            return response.json().get("response", "")
+        raise Exception(f"Erro no Ollama: {response.status_code}")
+    except Exception as e:
+        raise Exception(f"Falha na comunicação com a IA: {str(e)}")
+
+def agent_architect(user_prompt):
+    """Agente 1: Analisa o pedido e planeja os arquivos necessários em formato JSON."""
+    system = (
+        "You are a Software Architect AI. Given a user request, return a JSON array "
+        "containing the list of files to create for a complete web application. "
+        "Example format: [\"index.html\", \"styles.css\", \"app.js\"]. "
+        "Return ONLY valid JSON array. No markdown code blocks."
+    )
+    response = call_ollama(user_prompt, system)
+    try:
+        start = response.find('[')
+        end = response.rfind(']') + 1
+        if start != -1 and end != 0:
+            return json.loads(response[start:end])
+        return ["index.html"]
+    except Exception:
+        return ["index.html"]
+
+def agent_coder(user_prompt, file_name):
+    """Agente 2: Escreve o código limpo e funcional para cada arquivo planejado."""
+    system = (
+        f"You are an expert Fullstack Developer. Write the complete, production-ready "
+        f"code for the file: {file_name}, based on the user request. Use modern "
+        f"frameworks via CDN (Tailwind CSS, Alpine.js, etc.) if web-based. Return "
+        f"ONLY the raw code inside the file. No explanations, no markdown blocks."
+    )
+    return call_ollama(user_prompt, system)
+
+def agent_debugger(file_code, file_name):
+    """Agente 3: Revisa o código gerado em busca de erros e garante que esteja funcional."""
+    system = (
+        f"You are a Senior Code Reviewer and Debugger. Review the following code for "
+        f"the file '{file_name}'. Fix any syntax errors, unclosed tags, or broken references. "
+        f"Return ONLY the corrected, raw code. No explanations, no markdown blocks."
+    )
+    return call_ollama(file_code, system)
