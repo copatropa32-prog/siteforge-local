@@ -41,6 +41,9 @@ class FileSaveRequest(BaseModel):
     path: str
     content: str
 
+class FileActionRequest(BaseModel):
+    path: str
+
 @app.get("/api/config")
 async def get_config():
     return load_config()
@@ -93,6 +96,32 @@ async def save_file_content(request: FileSaveRequest):
         with open(file_full_path, "w", encoding="utf-8") as f:
             f.write(request.content)
         return {"status": "success", "message": "Arquivo salvo com sucesso!"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/file-create")
+async def create_file(request: FileActionRequest):
+    project_path = os.path.join(WORKSPACE_DIR, "latest_project")
+    file_full_path = os.path.join(project_path, request.path)
+    if os.path.exists(file_full_path):
+        raise HTTPException(status_code=400, detail="Arquivo já existe")
+    try:
+        os.makedirs(os.path.dirname(file_full_path), exist_ok=True)
+        with open(file_full_path, "w", encoding="utf-8") as f:
+            f.write("<!-- Novo arquivo criado manualmente -->\n")
+        return {"status": "success", "message": "Arquivo criado com sucesso!"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/file-delete")
+async def delete_file(request: FileActionRequest):
+    project_path = os.path.join(WORKSPACE_DIR, "latest_project")
+    file_full_path = os.path.join(project_path, request.path)
+    if not os.path.exists(file_full_path):
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+    try:
+        os.remove(file_full_path)
+        return {"status": "success", "message": "Arquivo excluído com sucesso!"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -172,21 +201,4 @@ async def modify_app(request: ProjectRequest):
         
         modified_files = []
         for file_name, new_code in modifications.items():
-            clean_code = new_code.replace(f"```{file_name.split('.')[-1]}", "").replace("```", "").strip()
-            file_full_path = os.path.join(project_path, file_name)
-            with open(file_full_path, "w", encoding="utf-8") as f:
-                f.write(clean_code)
-            modified_files.append(file_name)
-        
-        current_status_log = f"✅ Modificações aplicadas com sucesso em: {modified_files}"
-        return {
-            "status": "success",
-            "files": modified_files,
-            "preview_url": "/preview/index.html"
-        }
-    except Exception as e:
-        current_status_log = f"❌ Erro na modificação: {str(e)}"
-        raise HTTPException(status_code=500, detail=str(e))
-
-app.mount("/preview", StaticFiles(directory=os.path.join(WORKSPACE_DIR, "latest_project"), html=True), name="preview")
-app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+            clean_code = new_code.replace(f"```{file_name.split('.')[-1]}", "").replace
