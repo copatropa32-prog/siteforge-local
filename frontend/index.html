@@ -8,9 +8,14 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen p-6">
     <div class="max-w-7xl mx-auto">
-        <header class="mb-8">
-            <h1 class="text-3xl font-extrabold text-blue-400">SiteForge Local</h1>
-            <p class="text-slate-400">Construtor autônomo de aplicações com IA local e Multi-Agentes</p>
+        <header class="mb-8 flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-extrabold text-blue-400">SiteForge Local</h1>
+                <p class="text-slate-400">Construtor autônomo de aplicações com IA local e Multi-Agentes</p>
+            </div>
+            <button onclick="baixarProjeto()" class="bg-indigo-600 hover:bg-indigo-700 transition font-medium px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-lg">
+                📦 Baixar Projeto (ZIP)
+            </button>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -129,6 +134,10 @@
             } catch (e) {
                 alert('Erro ao carregar o arquivo.');
             }
+        }
+
+        function baixarProjeto() {
+            window.location.href = '/api/download';
         }
 
         async function gerarProjeto() {
