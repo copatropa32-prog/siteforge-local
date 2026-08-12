@@ -5,11 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SiteForge IDE</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Monaco Editor -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+    <!-- Xterm.js -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.1.0/xterm.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.1.0/xterm.min.js"></script>
     <style>
-        /* Ajuste fino para o layout de IDE */
         body, html { height: 100%; margin: 0; overflow: hidden; }
         .sidebar-item:hover { background-color: #1e293b; }
+        #terminalLog .xterm { padding: 10px; }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-200 flex h-screen">
@@ -18,24 +22,22 @@
     <aside class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col flex-none">
         <div class="p-4 border-b border-slate-800 flex justify-between items-center">
             <h2 class="font-bold text-sm text-slate-400 uppercase tracking-wider">Arquivos</h2>
-            <button onclick="criarArquivoManual()" class="text-emerald-500 hover:text-emerald-400 font-bold">+</button>
+            <button onclick="criarArquivoManual()" class="text-emerald-500 hover:text-emerald-400 font-bold text-lg">+</button>
         </div>
-        <div id="fileList" class="flex-1 overflow-y-auto p-2 space-y-1">
-            <!-- Arquivos aparecerão aqui -->
-        </div>
+        <div id="fileList" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
         <div class="p-4 border-t border-slate-800">
             <button onclick="baixarProjeto()" class="w-full bg-slate-800 hover:bg-slate-700 text-xs py-2 rounded">Exportar ZIP</button>
         </div>
     </aside>
 
-    <!-- 2. MAIN WORKSPACE (Editor + Terminal) -->
+    <!-- 2. MAIN WORKSPACE -->
     <main class="flex-1 flex flex-col min-w-0">
-        <!-- Toolbar Superior -->
+        <!-- Toolbar -->
         <header class="h-12 bg-slate-900 border-b border-slate-800 flex items-center px-4 justify-between">
-            <div id="currentFileName" class="text-sm font-medium">Nenhum arquivo</div>
+            <div id="currentFileName" class="text-sm font-medium text-slate-400">Nenhum arquivo</div>
             <div class="flex gap-2">
-                <button onclick="salvarArquivoAtual()" class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-xs">Salvar</button>
-                <button onclick="gerarProjeto()" class="bg-emerald-600 hover:bg-emerald-700 px-3 py-1 rounded text-xs">Gerar</button>
+                <button onclick="salvarArquivoAtual()" class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-xs text-white">Salvar</button>
+                <button onclick="gerarProjeto()" class="bg-emerald-600 hover:bg-emerald-700 px-3 py-1 rounded text-xs text-white">Gerar</button>
             </div>
         </header>
 
@@ -44,20 +46,20 @@
 
         <!-- Painel Inferior (Terminal + Preview) -->
         <section class="h-48 border-t border-slate-800 bg-slate-900 flex">
-            <!-- Terminal Log -->
-            <div class="w-1/2 border-r border-slate-800 p-4 flex flex-col">
-                <h3 class="text-xs font-bold text-slate-500 mb-2 uppercase">Terminal</h3>
-                <div id="terminalLog" class="flex-1 overflow-y-auto font-mono text-xs text-emerald-400">Aguardando...</div>
+            <!-- Terminal -->
+            <div class="w-1/2 border-r border-slate-800 flex flex-col">
+                <h3 class="text-[10px] font-bold text-slate-500 p-2 uppercase">Terminal</h3>
+                <div id="terminalLog" class="flex-1 overflow-hidden"></div>
             </div>
             <!-- Preview -->
-            <div class="w-1/2 p-0">
+            <div class="w-1/2">
                 <iframe id="previewFrame" src="about:blank" class="w-full h-full border-none"></iframe>
             </div>
         </section>
     </main>
 
     <script>
-        // --- Monaco Editor ---
+        // --- Setup Monaco ---
         let editor;
         require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
         require(['vs/editor/editor.main'], function() {
@@ -69,9 +71,23 @@
             });
         });
 
+        // --- Setup Xterm.js ---
+        const term = new Terminal({ cursorBlink: true, fontSize: 12, theme: { background: '#0f172a' } });
+        term.open(document.getElementById('terminalLog'));
+        term.writeln('Bem-vindo ao SiteForge Terminal...');
+        term.onData(e => {
+            fetch('/api/terminal-input', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ input: e })
+            });
+        });
+
+        function logTerminal(msg) { term.writeln(`\x1b[32m>\x1b[0m ${msg}`); }
+
+        // --- Lógica Geral ---
         let currentFileActive = null;
 
-        // --- Lógica ---
         async function carregarArquivos() {
             const res = await fetch('/api/files');
             const files = await res.json();
@@ -79,7 +95,7 @@
             list.innerHTML = '';
             files.forEach(file => {
                 const item = document.createElement('div');
-                item.className = 'sidebar-item flex justify-between items-center px-2 py-1.5 rounded cursor-pointer text-sm';
+                item.className = 'sidebar-item flex justify-between items-center px-2 py-1.5 rounded cursor-pointer text-sm text-slate-300';
                 item.onclick = () => verConteudoArquivo(file);
                 item.innerHTML = `<span>${file}</span> <button onclick="event.stopPropagation(); deletarArquivo('${file}')" class="text-slate-600 hover:text-red-400">✕</button>`;
                 list.appendChild(item);
@@ -91,7 +107,8 @@
             document.getElementById('currentFileName').innerText = path;
             const res = await fetch(`/api/file-content?path=${encodeURIComponent(path)}`);
             const data = await res.json();
-            const model = monaco.editor.createModel(data.content, path.endsWith('.js') ? 'javascript' : (path.endsWith('.css') ? 'css' : 'html'));
+            const lang = path.endsWith('.js') ? 'javascript' : (path.endsWith('.css') ? 'css' : 'html');
+            const model = monaco.editor.createModel(data.content, lang);
             editor.setModel(model);
         }
 
@@ -102,21 +119,15 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ path: currentFileActive, content: editor.getValue() })
             });
-            logTerminal("Arquivo salvo com sucesso.");
+            logTerminal("Arquivo salvo.");
             atualizarPreview();
         }
 
-        async function logTerminal(msg) {
-            const terminal = document.getElementById('terminalLog');
-            terminal.innerText += `\n> ${msg}`;
-            terminal.scrollTop = terminal.scrollHeight;
-        }
-
         async function gerarProjeto() {
-            const prompt = prompt("O que você deseja construir?");
-            if (!prompt) return;
-            logTerminal("Agentes trabalhando...");
-            await fetch('/api/gerar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ prompt }) });
+            const promptStr = prompt("O que deseja construir?");
+            if (!promptStr) return;
+            logTerminal("Agente iniciando: " + promptStr);
+            await fetch('/api/gerar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ prompt: promptStr }) });
             carregarArquivos();
             atualizarPreview();
         }
