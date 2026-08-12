@@ -59,17 +59,20 @@
                 </section>
             </div>
 
-            <!-- Coluna 2 e 3: Árvore de Arquivos, Editor e Live Preview -->
+            <!-- Coluna 2 e 3: Editor de Código Interativo e Live Preview -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 lg:col-span-2">
-                <!-- Árvore de Arquivos e Código -->
+                <!-- Editor de Código -->
                 <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg flex flex-col">
-                    <h2 class="text-xl font-bold mb-4">📁 Arquivos do Projeto</h2>
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-bold">📁 Editor de Arquivos</h2>
+                        <button onclick="salvarArquivoAtual()" id="btnSalvarArquivo" class="bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1.5 rounded-lg font-medium transition hidden">💾 Salvar Alterações</button>
+                    </div>
                     <div id="fileList" class="flex flex-wrap gap-2 mb-4">
                         <span class="text-sm text-slate-500">Nenhum arquivo gerado ainda.</span>
                     </div>
                     <div class="flex-1 bg-slate-950 border border-slate-800 rounded-xl overflow-hidden flex flex-col min-h-[300px]">
                         <div id="currentFileName" class="bg-slate-900 px-4 py-2 border-b border-slate-800 text-xs text-slate-400">Selecione um arquivo</div>
-                        <pre class="p-4 text-xs text-emerald-400 overflow-auto flex-1"><code id="fileCode">O código aparecerá aqui...</code></pre>
+                        <textarea id="fileCode" class="w-full flex-1 bg-slate-950 p-4 text-xs text-emerald-400 font-mono focus:outline-none resize-none" placeholder="O código aparecerá aqui para edição..."></textarea>
                     </div>
                 </div>
 
@@ -89,6 +92,8 @@
     </div>
 
     <script>
+        let currentFileActive = null;
+
         async function carregarConfig() {
             try {
                 const res = await fetch('/api/config');
@@ -140,13 +145,36 @@
         }
 
         async function verConteudoArquivo(path) {
+            currentFileActive = path;
             try {
                 const res = await fetch(`/api/file-content?path=${encodeURIComponent(path)}`);
                 const data = await res.json();
                 document.getElementById('currentFileName').innerText = path;
-                document.getElementById('fileCode').innerText = data.content;
+                document.getElementById('fileCode').value = data.content;
+                document.getElementById('btnSalvarArquivo').classList.remove('hidden');
             } catch (e) {
                 alert('Erro ao carregar o arquivo.');
+            }
+        }
+
+        async function salvarArquivoAtual() {
+            if (!currentFileActive) return;
+            const content = document.getElementById('fileCode').value;
+            try {
+                const res = await fetch('/api/file-content', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ path: currentFileActive, content })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    alert('Arquivo salvo com sucesso!');
+                    atualizarPreview();
+                } else {
+                    alert('Erro ao salvar arquivo.');
+                }
+            } catch (e) {
+                alert('Falha na comunicação ao salvar arquivo.');
             }
         }
 
@@ -156,7 +184,7 @@
 
         async function gerarProjeto() {
             const prompt = document.getElementById('prompt').value;
-                    if (!prompt) {
+            if (!prompt) {
                 alert('Por favor, descreva o projeto.');
                 return;
             }
