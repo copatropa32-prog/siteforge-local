@@ -1,12 +1,106 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SiteForge Local</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SiteForge Local - Painel Multi-Agentes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-6">
+    <div class="max-w-4xl mx-auto">
+        <header class="mb-8">
+            <h1 class="text-3xl font-extrabold text-blue-400">SiteForge Local</h1>
+            <p class="text-slate-400">Seu construtor de aplicações autônomo baseado em IA local</p>
+        </header>
+
+        <!-- Painel de Configurações -->
+        <section class="bg-slate-900 border border-slate-800 p-6 rounded-2xl mb-8 shadow-lg">
+            <h2 class="text-xl font-bold mb-4">⚙️ Configurações do Sistema</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Domínio Personalizado</label>
+                    <input id="domain" type="text" placeholder="ex: meudominio.com.br" class="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Variáveis de Ambiente (JSON)</label>
+                    <input id="env_vars" type="text" placeholder='{"CHAVE": "valor"}' class="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+            <button onclick="salvarConfig()" class="mt-4 bg-blue-600 hover:bg-blue-700 transition font-medium px-5 py-2.5 rounded-xl">Salvar Configurações</button>
+        </section>
+
+        <!-- Painel de Geração de Projetos por Agentes -->
+        <section class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
+            <h2 class="text-xl font-bold mb-4">🚀 Criar Aplicativo com Agentes</h2>
+            <div class="flex flex-col gap-4">
+                <textarea id="prompt" rows="4" placeholder="Descreva o que deseja criar (ex: Um painel de controle financeiro moderno)..." class="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-blue-500"></textarea>
+                <button onclick="gerarProjeto()" id="btnGerar" class="bg-emerald-600 hover:bg-emerald-700 transition font-medium px-5 py-3 rounded-xl">Executar Agentes de IA</button>
+            </div>
+            <div id="resultado" class="mt-6 hidden">
+                <h3 class="font-bold text-lg mb-2">Status da Geração:</h3>
+                <pre id="logOutput" class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-sm overflow-x-auto text-emerald-400"></pre>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        async function carregarConfig() {
+            try {
+                const res = await fetch('/api/config');
+                const data = await res.json();
+                document.getElementById('domain').value = data.domain || '';
+                document.getElementById('env_vars').value = data.env_vars || '';
+            } catch (e) {
+                console.error("Erro ao carregar configurações", e);
+            }
+        }
+
+        async function salvarConfig() {
+            const config = {
+                domain: document.getElementById('domain').value,
+                env_vars: document.getElementById('env_vars').value
+            };
+            const res = await fetch('/api/config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(config)
+            });
+            const data = await res.json();
+            alert(data.message || 'Configurações salvas!');
+        }
+
+        async function gerarProjeto() {
+            const prompt = document.getElementById('prompt').value;
+            if (!prompt) {
+                alert('Por favor, descreva o projeto.');
+                return;
+            }
+            const btn = document.getElementById('btnGerar');
+            const resBox = document.getElementById('resultado');
+            const log = document.getElementById('logOutput');
+
+            btn.disabled = true;
+            btn.innerText = 'Agentes trabalhando...';
+            resBox.classList.remove('hidden');
+            log.innerText = 'Arquitetando e desenvolvendo o projeto localmente...';
+
+            try {
+                const response = await fetch('/api/gerar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ prompt })
+                });
+                const data = await response.json();
+                log.innerText = JSON.stringify(data, null, 2);
+            } catch (e) {
+                log.innerText = 'Erro ao gerar projeto: ' + e.message;
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Executar Agentes de IA';
+            }
+        }
+
+        carregarConfig();
+    </script>
+</body>
 </html>
