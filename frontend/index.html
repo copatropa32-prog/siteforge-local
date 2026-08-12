@@ -19,7 +19,7 @@
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Coluna 1: Configurações e Criação -->
+            <!-- Coluna 1: Configurações, Criação e Refinamento -->
             <div class="space-y-6 lg:col-span-1">
                 <!-- Painel de Configurações -->
                 <section class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
@@ -45,8 +45,17 @@
                 <section class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
                     <h2 class="text-xl font-bold mb-4">🚀 Criar Aplicativo</h2>
                     <div class="flex flex-col gap-4">
-                        <textarea id="prompt" rows="4" placeholder="Descreva o que deseja criar..." class="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-blue-500"></textarea>
+                        <textarea id="prompt" rows="3" placeholder="Descreva o que deseja criar do zero..." class="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-blue-500"></textarea>
                         <button onclick="gerarProjeto()" id="btnGerar" class="bg-emerald-600 hover:bg-emerald-700 transition font-medium px-5 py-3 rounded-xl w-full">Executar Agentes de IA</button>
+                    </div>
+                </section>
+
+                <!-- Painel de Modificação Cirúrgica -->
+                <section class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
+                    <h2 class="text-xl font-bold mb-4">💬 Refinar Projeto</h2>
+                    <div class="flex flex-col gap-4">
+                        <textarea id="modifyPrompt" rows="3" placeholder="Ex: Mude a cor do botão para azul..." class="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-blue-500"></textarea>
+                        <button onclick="modificarProjeto()" id="btnModificar" class="bg-purple-600 hover:bg-purple-700 transition font-medium px-5 py-3 rounded-xl w-full">Aplicar Modificação Cirúrgica</button>
                     </div>
                 </section>
 
@@ -229,10 +238,65 @@
             } catch (e) {
                 clearInterval(logInterval);
                 status.innerText = 'Falha de comunicação.';
-                terminal.innerText += '\n❌ Erro crítico de comunicação com o servidor.';
+                terminal.innerText += '\n❌ Erro crítico de comunicação.';
             } finally {
                 btn.disabled = false;
                 btn.innerText = 'Executar Agentes de IA';
+            }
+        }
+
+        async function modificarProjeto() {
+            const prompt = document.getElementById('modifyPrompt').value;
+            if (!prompt) {
+                alert('Por favor, descreva a modificação desejada.');
+                return;
+            }
+            const btn = document.getElementById('btnModificar');
+            const status = document.getElementById('previewStatus');
+            const frame = document.getElementById('previewFrame');
+            const terminal = document.getElementById('terminalLog');
+
+            btn.disabled = true;
+            btn.innerText = 'Modificando...';
+            status.innerText = 'Aplicando modificação...';
+
+            const logInterval = setInterval(async () => {
+                try {
+                    const res = await fetch('/api/status');
+                    const data = await res.json();
+                    terminal.innerText += '\n' + data.status;
+                    terminal.scrollTop = terminal.scrollHeight;
+                } catch (e) {
+                    console.error("Erro ao buscar logs", e);
+                }
+            }, 500);
+
+            try {
+                const response = await fetch('/api/modificar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ prompt })
+                });
+                const data = await response.json();
+                
+                clearInterval(logInterval);
+
+                if (data.status === 'success') {
+                    status.innerText = 'Modificação aplicada com sucesso!';
+                    terminal.innerText += '\n✅ Modificação concluída com sucesso!';
+                    frame.src = data.preview_url + '?t=' + new Date().getTime();
+                    await carregarArquivos();
+                    document.getElementById('modifyPrompt').value = '';
+                } else {
+                    status.innerText = 'Erro ao modificar projeto.';
+                }
+            } catch (e) {
+                clearInterval(logInterval);
+                status.innerText = 'Falha de comunicação.';
+                terminal.innerText += '\n❌ Erro crítico de comunicação.';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Aplicar Modificação Cirúrgica';
             }
         }
 
