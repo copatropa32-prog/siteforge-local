@@ -23,6 +23,9 @@ FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "fr
 WORKSPACE_DIR = os.path.join(os.path.dirname(__file__), "workspace")
 os.makedirs(WORKSPACE_DIR, exist_ok=True)
 
+# Variável global para armazenar o log em tempo real
+current_status_log = "Sistema pronto e aguardando comando..."
+
 def load_config():
     if os.path.exists(CONFIG_FILE):
         try:
@@ -47,6 +50,10 @@ async def save_config(config: dict):
         return {"status": "success", "message": "Configurações salvas com sucesso!"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/status")
+async def get_status():
+    return {"status": current_status_log}
 
 @app.get("/api/files")
 async def list_project_files():
@@ -85,17 +92,22 @@ async def download_project():
 
 @app.post("/api/gerar")
 async def generate_app(request: ProjectRequest):
+    global current_status_log
     try:
         project_path = os.path.join(WORKSPACE_DIR, "latest_project")
         os.makedirs(project_path, exist_ok=True)
 
+        current_status_log = "🤖 [Agente 1/3] Arquiteto analisando o prompt e planejando a estrutura..."
         files_to_create = agent_architect(request.prompt)
-        
+        current_status_log = f"📁 Estrutura planejada: {files_to_create}"
+
         generated_files = []
         for file_name in files_to_create:
+            current_status_log = f"💻 [Agente 2/3] Coder escrevendo o código para: {file_name}..."
             file_code = agent_coder(request.prompt, file_name)
             file_code = file_code.replace(f"```{file_name.split('.')[-1]}", "").replace("```", "").strip()
             
+            current_status_log = f"🛠️ [Agente 3/3] Debugger revisando e corrigindo: {file_name}..."
             fixed_code = agent_debugger(file_code, file_name)
             fixed_code = fixed_code.replace(f"```{file_name.split('.')[-1]}", "").replace("```", "").strip()
             
@@ -104,12 +116,14 @@ async def generate_app(request: ProjectRequest):
                 f.write(fixed_code)
             generated_files.append(file_name)
                 
+        current_status_log = "✅ Projeto gerado, revisado e pronto com sucesso!"
         return {
             "status": "success",
             "files": generated_files,
             "preview_url": "/preview/index.html"
         }
     except Exception as e:
+        current_status_log = f"❌ Erro durante o processo: {str(e)}"
         raise HTTPException(status_code=500, detail=str(e))
 
 app.mount("/preview", StaticFiles(directory=os.path.join(WORKSPACE_DIR, "latest_project"), html=True), name="preview")
