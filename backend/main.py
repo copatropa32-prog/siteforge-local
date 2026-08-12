@@ -1,8 +1,10 @@
 import os
 import json
+import shutil
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from agents import agent_architect, agent_coder, agent_debugger
 
@@ -70,6 +72,16 @@ async def get_file_content(path: str):
         return {"content": content}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/download")
+async def download_project():
+    project_path = os.path.join(WORKSPACE_DIR, "latest_project")
+    if not os.path.exists(project_path):
+        raise HTTPException(status_code=404, detail="Nenhum projeto encontrado para download")
+    
+    zip_base_path = os.path.join(WORKSPACE_DIR, "projeto_exportado")
+    shutil.make_archive(zip_base_path, 'zip', project_path)
+    return FileResponse(f"{zip_base_path}.zip", media_type="application/zip", filename="siteforge_projeto.zip")
 
 @app.post("/api/gerar")
 async def generate_app(request: ProjectRequest):
