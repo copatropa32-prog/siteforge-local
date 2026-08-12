@@ -45,6 +45,14 @@
                         <button onclick="gerarProjeto()" id="btnGerar" class="bg-emerald-600 hover:bg-emerald-700 transition font-medium px-5 py-3 rounded-xl w-full">Executar Agentes de IA</button>
                     </div>
                 </section>
+
+                <!-- Terminal Visual de Logs em Tempo Real -->
+                <section class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
+                    <h2 class="text-xl font-bold mb-3">💻 Terminal dos Agentes</h2>
+                    <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl h-36 overflow-y-auto font-mono text-xs text-emerald-400" id="terminalLog">
+                        Aguardando início das tarefas...
+                    </div>
+                </section>
             </div>
 
             <!-- Coluna 2 e 3: Árvore de Arquivos, Editor e Live Preview -->
@@ -149,10 +157,23 @@
             const btn = document.getElementById('btnGerar');
             const status = document.getElementById('previewStatus');
             const frame = document.getElementById('previewFrame');
+            const terminal = document.getElementById('terminalLog');
 
             btn.disabled = true;
             btn.innerText = 'Agentes trabalhando...';
-            status.innerText = 'Arquiteto, Coder e Debugger ativos...';
+            status.innerText = 'Processando com IA...';
+
+            // Iniciar o streaming de logs via polling a cada 500ms
+            const logInterval = setInterval(async () => {
+                try {
+                    const res = await fetch('/api/status');
+                    const data = await res.json();
+                    terminal.innerText += '\n' + data.status;
+                    terminal.scrollTop = terminal.scrollHeight;
+                } catch (e) {
+                    console.error("Erro ao buscar logs", e);
+                }
+            }, 500);
 
             try {
                 const response = await fetch('/api/gerar', {
@@ -162,15 +183,20 @@
                 });
                 const data = await response.json();
                 
+                clearInterval(logInterval);
+
                 if (data.status === 'success') {
                     status.innerText = 'Projeto gerado com sucesso!';
+                    terminal.innerText += '\n✅ Processo concluído com sucesso!';
                     frame.src = data.preview_url + '?t=' + new Date().getTime();
                     await carregarArquivos();
                 } else {
                     status.innerText = 'Erro ao gerar projeto.';
                 }
             } catch (e) {
+                clearInterval(logInterval);
                 status.innerText = 'Falha de comunicação.';
+                terminal.innerText += '\n❌ Erro crítico de comunicação com o servidor.';
             } finally {
                 btn.disabled = false;
                 btn.innerText = 'Executar Agentes de IA';
