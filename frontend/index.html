@@ -7,15 +7,15 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen p-6">
-    <div class="max-w-6xl mx-auto">
+    <div class="max-w-7xl mx-auto">
         <header class="mb-8">
             <h1 class="text-3xl font-extrabold text-blue-400">SiteForge Local</h1>
-            <p class="text-slate-400">Construtor autônomo de aplicações com IA local</p>
+            <p class="text-slate-400">Construtor autônomo de aplicações com IA local e Multi-Agentes</p>
         </header>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <!-- Coluna Esquerda: Configurações e Criação -->
-            <div class="space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Coluna 1: Configurações e Criação -->
+            <div class="space-y-6 lg:col-span-1">
                 <!-- Painel de Configurações -->
                 <section class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
                     <h2 class="text-xl font-bold mb-4">⚙️ Configurações</h2>
@@ -36,21 +36,36 @@
                 <section class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
                     <h2 class="text-xl font-bold mb-4">🚀 Criar Aplicativo</h2>
                     <div class="flex flex-col gap-4">
-                        <textarea id="prompt" rows="4" placeholder="Descreva o que deseja criar (ex: Um aplicativo de tarefas moderno)..." class="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-blue-500"></textarea>
+                        <textarea id="prompt" rows="4" placeholder="Descreva o que deseja criar..." class="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-blue-500"></textarea>
                         <button onclick="gerarProjeto()" id="btnGerar" class="bg-emerald-600 hover:bg-emerald-700 transition font-medium px-5 py-3 rounded-xl w-full">Executar Agentes de IA</button>
                     </div>
                 </section>
             </div>
 
-            <!-- Coluna Direta: Live Preview (Visualizador em Tempo Real) -->
-            <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg flex flex-col">
-                <h2 class="text-xl font-bold mb-4">👁️ Visualização em Tempo Real</h2>
-                <div class="flex-1 bg-slate-950 border border-slate-800 rounded-xl overflow-hidden min-h-[400px] flex flex-col">
-                    <div class="bg-slate-900 px-4 py-2 border-b border-slate-800 text-xs text-slate-400 flex items-center justify-between">
-                        <span id="previewStatus">Aguardando geração do projeto...</span>
-                        <button onclick="atualizarPreview()" class="text-blue-400 hover:underline">Recarregar</button>
+            <!-- Coluna 2 e 3: Árvore de Arquivos, Editor e Live Preview -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 lg:col-span-2">
+                <!-- Árvore de Arquivos e Código -->
+                <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg flex flex-col">
+                    <h2 class="text-xl font-bold mb-4">📁 Arquivos do Projeto</h2>
+                    <div id="fileList" class="flex flex-wrap gap-2 mb-4">
+                        <span class="text-sm text-slate-500">Nenhum arquivo gerado ainda.</span>
                     </div>
-                    <iframe id="previewFrame" src="about:blank" class="w-full flex-1 bg-white border-none"></iframe>
+                    <div class="flex-1 bg-slate-950 border border-slate-800 rounded-xl overflow-hidden flex flex-col min-h-[300px]">
+                        <div id="currentFileName" class="bg-slate-900 px-4 py-2 border-b border-slate-800 text-xs text-slate-400">Selecione um arquivo</div>
+                        <pre class="p-4 text-xs text-emerald-400 overflow-auto flex-1"><code id="fileCode">O código aparecerá aqui...</code></pre>
+                    </div>
+                </div>
+
+                <!-- Live Preview -->
+                <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg flex flex-col">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-bold">👁️ Live Preview</h2>
+                        <button onclick="atualizarPreview()" class="text-xs text-blue-400 hover:underline">Recarregar</button>
+                    </div>
+                    <div class="flex-1 bg-slate-950 border border-slate-800 rounded-xl overflow-hidden min-h-[350px] flex flex-col">
+                        <div class="bg-slate-900 px-4 py-2 border-b border-slate-800 text-xs text-slate-400" id="previewStatus">Aguardando...</div>
+                        <iframe id="previewFrame" src="about:blank" class="w-full flex-1 bg-white border-none"></iframe>
+                    </div>
                 </div>
             </div>
         </div>
@@ -73,13 +88,47 @@
                 domain: document.getElementById('domain').value,
                 env_vars: document.getElementById('env_vars').value
             };
-            const res = await fetch('/api/config', {
+            await fetch('/api/config', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(config)
             });
-            const data = await res.json();
-            alert(data.message || 'Configurações salvas!');
+            alert('Configurações salvas!');
+        }
+
+        async function carregarArquivos() {
+            try {
+                const res = await fetch('/api/files');
+                const files = await res.json();
+                const fileListDiv = document.getElementById('fileList');
+                fileListDiv.innerHTML = '';
+
+                if (files.length === 0) {
+                    fileListDiv.innerHTML = '<span class="text-sm text-slate-500">Nenhum arquivo gerado ainda.</span>';
+                    return;
+                }
+
+                files.forEach(file => {
+                    const btn = document.createElement('button');
+                    btn.className = 'bg-slate-800 hover:bg-slate-700 text-xs px-3 py-1.5 rounded-lg border border-slate-700 transition';
+                    btn.innerText = file;
+                    btn.onclick = () => verConteudoArquivo(file);
+                    fileListDiv.appendChild(btn);
+                });
+            } catch (e) {
+                console.error("Erro ao carregar lista de arquivos", e);
+            }
+        }
+
+        async function verConteudoArquivo(path) {
+            try {
+                const res = await fetch(`/api/file-content?path=${encodeURIComponent(path)}`);
+                const data = await res.json();
+                document.getElementById('currentFileName').innerText = path;
+                document.getElementById('fileCode').innerText = data.content;
+            } catch (e) {
+                alert('Erro ao carregar o arquivo.');
+            }
         }
 
         async function gerarProjeto() {
@@ -94,7 +143,7 @@
 
             btn.disabled = true;
             btn.innerText = 'Agentes trabalhando...';
-            status.innerText = 'O Arquiteto e o Coder estão criando o app...';
+            status.innerText = 'Arquiteto, Coder e Debugger ativos...';
 
             try {
                 const response = await fetch('/api/gerar', {
@@ -107,11 +156,12 @@
                 if (data.status === 'success') {
                     status.innerText = 'Projeto gerado com sucesso!';
                     frame.src = data.preview_url + '?t=' + new Date().getTime();
+                    await carregarArquivos();
                 } else {
                     status.innerText = 'Erro ao gerar projeto.';
                 }
             } catch (e) {
-                status.innerText = 'Falha de comunicação com o servidor.';
+                status.innerText = 'Falha de comunicação.';
             } finally {
                 btn.disabled = false;
                 btn.innerText = 'Executar Agentes de IA';
@@ -124,6 +174,7 @@
         }
 
         carregarConfig();
+        carregarArquivos();
     </script>
 </body>
 </html>
