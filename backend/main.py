@@ -46,22 +46,44 @@ async def save_config(config: dict):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/files")
+async def list_project_files():
+    project_path = os.path.join(WORKSPACE_DIR, "latest_project")
+    if not os.path.exists(project_path):
+        return []
+    files = []
+    for root, _, filenames in os.walk(project_path):
+        for name in filenames:
+            rel_path = os.path.relpath(os.path.join(root, name), project_path)
+            files.append(rel_path)
+    return files
+
+@app.get("/api/file-content")
+async def get_file_content(path: str):
+    project_path = os.path.join(WORKSPACE_DIR, "latest_project")
+    file_full_path = os.path.join(project_path, path)
+    if not os.path.exists(file_full_path):
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+    try:
+        with open(file_full_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        return {"content": content}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/gerar")
 async def generate_app(request: ProjectRequest):
     try:
         project_path = os.path.join(WORKSPACE_DIR, "latest_project")
         os.makedirs(project_path, exist_ok=True)
 
-        # Passo 1: Arquiteto planeja
         files_to_create = agent_architect(request.prompt)
         
         generated_files = []
         for file_name in files_to_create:
-            # Passo 2: Coder escreve o código inicial
             file_code = agent_coder(request.prompt, file_name)
             file_code = file_code.replace(f"```{file_name.split('.')[-1]}", "").replace("```", "").strip()
             
-            # Passo 3: Debugger revisa e corrige o código de forma autônoma
             fixed_code = agent_debugger(file_code, file_name)
             fixed_code = fixed_code.replace(f"```{file_name.split('.')[-1]}", "").replace("```", "").strip()
             
