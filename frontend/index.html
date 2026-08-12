@@ -26,6 +26,10 @@
                     <h2 class="text-xl font-bold mb-4">⚙️ Configurações</h2>
                     <div class="space-y-4">
                         <div>
+                            <label class="block text-sm font-medium text-slate-400 mb-1">Modelo de IA (Ollama)</label>
+                            <input id="model" type="text" placeholder="ex: llama3, mistral, codellama" class="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div>
                             <label class="block text-sm font-medium text-slate-400 mb-1">Domínio Personalizado</label>
                             <input id="domain" type="text" placeholder="ex: meudominio.com.br" class="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-blue-500">
                         </div>
@@ -89,6 +93,7 @@
             try {
                 const res = await fetch('/api/config');
                 const data = await res.json();
+                document.getElementById('model').value = data.model || 'llama3';
                 document.getElementById('domain').value = data.domain || '';
                 document.getElementById('env_vars').value = data.env_vars || '';
             } catch (e) {
@@ -98,6 +103,7 @@
 
         async function salvarConfig() {
             const config = {
+                model: document.getElementById('model').value || 'llama3',
                 domain: document.getElementById('domain').value,
                 env_vars: document.getElementById('env_vars').value
             };
@@ -150,7 +156,7 @@
 
         async function gerarProjeto() {
             const prompt = document.getElementById('prompt').value;
-            if (!prompt) {
+                    if (!prompt) {
                 alert('Por favor, descreva o projeto.');
                 return;
             }
@@ -163,7 +169,6 @@
             btn.innerText = 'Agentes trabalhando...';
             status.innerText = 'Processando com IA...';
 
-            // Iniciar o streaming de logs via polling a cada 500ms
             const logInterval = setInterval(async () => {
                 try {
                     const res = await fetch('/api/status');
