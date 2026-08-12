@@ -37,6 +37,10 @@ def load_config():
 class ProjectRequest(BaseModel):
     prompt: str
 
+class FileSaveRequest(BaseModel):
+    path: str
+    content: str
+
 @app.get("/api/config")
 async def get_config():
     return load_config()
@@ -76,6 +80,19 @@ async def get_file_content(path: str):
         with open(file_full_path, "r", encoding="utf-8") as f:
             content = f.read()
         return {"content": content}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/file-content")
+async def save_file_content(request: FileSaveRequest):
+    project_path = os.path.join(WORKSPACE_DIR, "latest_project")
+    file_full_path = os.path.join(project_path, request.path)
+    if not os.path.exists(file_full_path):
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+    try:
+        with open(file_full_path, "w", encoding="utf-8") as f:
+            f.write(request.content)
+        return {"status": "success", "message": "Arquivo salvo com sucesso!"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
