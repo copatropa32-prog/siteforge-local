@@ -74,7 +74,10 @@
                 <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg flex flex-col">
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-xl font-bold">📁 Editor de Arquivos</h2>
-                        <button onclick="salvarArquivoAtual()" id="btnSalvarArquivo" class="bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1.5 rounded-lg font-medium transition hidden">💾 Salvar Alterações</button>
+                        <div class="flex gap-2">
+                            <button onclick="criarArquivoManual()" class="bg-emerald-600 hover:bg-emerald-700 text-xs px-3 py-1.5 rounded-lg font-medium transition">➕ Novo Arquivo</button>
+                            <button onclick="salvarArquivoAtual()" id="btnSalvarArquivo" class="bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1.5 rounded-lg font-medium transition hidden">💾 Salvar Alterações</button>
+                        </div>
                     </div>
                     <div id="fileList" class="flex flex-wrap gap-2 mb-4">
                         <span class="text-sm text-slate-500">Nenhum arquivo gerado ainda.</span>
@@ -142,11 +145,26 @@
                 }
 
                 files.forEach(file => {
+                    const container = document.createElement('div');
+                    container.className = 'flex items-center bg-slate-800 border border-slate-700 rounded-lg overflow-hidden text-xs';
+
                     const btn = document.createElement('button');
-                    btn.className = 'bg-slate-800 hover:bg-slate-700 text-xs px-3 py-1.5 rounded-lg border border-slate-700 transition';
+                    btn.className = 'px-3 py-1.5 hover:bg-slate-700 transition text-slate-200';
                     btn.innerText = file;
                     btn.onclick = () => verConteudoArquivo(file);
-                    fileListDiv.appendChild(btn);
+
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'px-2 py-1.5 text-red-400 hover:bg-red-950 transition border-l border-slate-700';
+                    delBtn.innerText = '✕';
+                    delBtn.title = 'Excluir arquivo';
+                    delBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        deletarArquivo(file);
+                    };
+
+                    container.appendChild(btn);
+                    container.appendChild(delBtn);
+                    fileListDiv.appendChild(container);
                 });
             } catch (e) {
                 console.error("Erro ao carregar lista de arquivos", e);
@@ -184,6 +202,54 @@
                 }
             } catch (e) {
                 alert('Falha na comunicação ao salvar arquivo.');
+            }
+        }
+
+        async function criarArquivoManual() {
+            const path = prompt("Digite o nome do novo arquivo (ex: contato.html, styles.css):");
+            if (!path) return;
+            try {
+                const res = await fetch('/api/file-create', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ path })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    await carregarArquivos();
+                    verConteudoArquivo(path);
+                    atualizarPreview();
+                } else {
+                    alert('Erro ao criar arquivo.');
+                }
+            } catch (e) {
+                alert('Falha na comunicação ao criar arquivo.');
+            }
+        }
+
+        async function deletarArquivo(path) {
+            if (!confirm(`Deseja realmente excluir o arquivo "${path}"?`)) return;
+            try {
+                const res = await fetch('/api/file-delete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ path })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    if (currentFileActive === path) {
+                        currentFileActive = null;
+                        document.getElementById('currentFileName').innerText = 'Selecione um arquivo';
+                        document.getElementById('fileCode').value = '';
+                        document.getElementById('btnSalvarArquivo').classList.add('hidden');
+                    }
+                    await carregarArquivos();
+                    atualizarPreview();
+                } else {
+                    alert('Erro ao excluir arquivo.');
+                }
+            } catch (e) {
+                alert('Falha na comunicação ao excluir arquivo.');
             }
         }
 
