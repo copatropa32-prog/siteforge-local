@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from agents import agent_architect, agent_coder
+from agents import agent_architect, agent_coder, agent_debugger
 
 app = FastAPI()
 
@@ -52,16 +52,22 @@ async def generate_app(request: ProjectRequest):
         project_path = os.path.join(WORKSPACE_DIR, "latest_project")
         os.makedirs(project_path, exist_ok=True)
 
+        # Passo 1: Arquiteto planeja
         files_to_create = agent_architect(request.prompt)
         
         generated_files = []
         for file_name in files_to_create:
+            # Passo 2: Coder escreve o código inicial
             file_code = agent_coder(request.prompt, file_name)
             file_code = file_code.replace(f"```{file_name.split('.')[-1]}", "").replace("```", "").strip()
             
+            # Passo 3: Debugger revisa e corrige o código de forma autônoma
+            fixed_code = agent_debugger(file_code, file_name)
+            fixed_code = fixed_code.replace(f"```{file_name.split('.')[-1]}", "").replace("```", "").strip()
+            
             file_full_path = os.path.join(project_path, file_name)
             with open(file_full_path, "w", encoding="utf-8") as f:
-                f.write(file_code)
+                f.write(fixed_code)
             generated_files.append(file_name)
                 
         return {
@@ -72,7 +78,5 @@ async def generate_app(request: ProjectRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Rota para servir o app gerado em tempo real
 app.mount("/preview", StaticFiles(directory=os.path.join(WORKSPACE_DIR, "latest_project"), html=True), name="preview")
-# Rota principal para o painel de controle
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
