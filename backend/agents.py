@@ -52,3 +52,21 @@ def agent_debugger(file_code, file_name, model_name="llama3"):
         f"Return ONLY the corrected, raw code. No explanations, no markdown blocks."
     )
     return call_ollama(file_code, system, model_name)
+
+def agent_modifier(project_files_str, user_prompt, model_name="llama3"):
+    system = (
+        "You are an expert Fullstack Developer Modifier AI. Given the existing project files content "
+        "and a user modification request, return a JSON object where keys are the filenames to update "
+        "and values are the complete updated code for those files. "
+        "Return ONLY valid JSON. No markdown code blocks."
+    )
+    full_prompt = f"Existing Files:\n{project_files_str}\n\nModification Request: {user_prompt}"
+    response = call_ollama(full_prompt, system, model_name)
+    try:
+        start = response.find('{')
+        end = response.rfind('}') + 1
+        if start != -1 and end != 0:
+            return json.loads(response[start:end])
+        return {}
+    except Exception:
+        return {}
